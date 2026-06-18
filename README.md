@@ -32,22 +32,6 @@ Repo này được chia thành ba phần rõ ràng:
 - `src/`: bản scaffold dành cho sinh viên, chứa pseudocode và TODO để hoàn thiện
 - `data/`: dữ liệu benchmark ở root để dùng cho cả benchmark chuẩn và stress benchmark
 
-## File và thư mục quan trọng
-
-- `src/agent_baseline.py`: skeleton cho Agent A
-- `src/agent_advanced.py`: skeleton cho Agent B
-- `src/memory_store.py`: nơi các bạn tự triển khai `User.md` và compact memory
-- `src/benchmark.py`: benchmark chuẩn và stress benchmark
-- `src/test_agents.py`: test students cần làm pass
-- `data/conversations.json`: benchmark chuẩn gồm 10 hội thoại tiếng Việt
-- `data/advanced_long_context.json`: benchmark dài để làm lộ tác động của compact memory
-## Luồng học khuyến nghị
-
-1. Đọc `Guide.md` để hiểu thứ tự triển khai.
-2. Làm trực tiếp trong `src/`.
-3. Chạy benchmark để so sánh `Baseline` và `Advanced`.
-4. Đọc `Rubric.md` để tự đánh giá mức hoàn thành của nhóm.
-
 ## Provider hỗ trợ
 
 Trong bản solved lab, runtime hỗ trợ các provider sau:
@@ -74,8 +58,8 @@ Khi hoàn thiện bài, benchmark nên cho các cột sau:
 
 Điểm quan trọng nhất của track này là:
 
-- ở hội thoại ngắn, `Advanced` có thể tốn hơn `Baseline`
-- ở hội thoại rất dài, compact memory nên giúp `Advanced` xử lý ngữ cảnh hiệu quả hơn đáng kể
+- ở hội thoại ngắn, `Advanced` có thể tốn hơn `Baseline` về token usage
+- ở hội thoại rất dài, compact memory nên giúp `Advanced` xử lý ngữ cảnh hiệu quả hơn đáng kể + tiết kiệm usage.
 
 ## Cách dùng repo này
 
