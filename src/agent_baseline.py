@@ -142,14 +142,28 @@ class BaselineAgent:
             return f"Hiểu rồi. Cảm ơn bạn đã chia sẻ: '{message[:50]}...'. Có gì khác mình giúp không?"
 
     def _reply_live(self, thread_id: str, message: str) -> str:
-        """Generate response từ real LLM (nếu implement).
+        """Generate response từ real LLM.
 
-        Mục đích: Optional live path nếu LLM API khả dụng.
+        Gửi toàn bộ session history (đã có current user message) lên LLM.
         """
-        # Placeholder: khi tích hợp real LLM, gọi self.langchain_agent
-        # ví dụ: model_response = self.langchain_agent.invoke({'messages': session.messages})
-        # return model_response.content
-        return self._reply_offline(thread_id, message)  # Fallback to offline
+        from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
+        session = self.sessions[thread_id]
+
+        lc_messages = [SystemMessage(content=(
+            "You are a helpful assistant. "
+            "You remember messages within this conversation but forget everything "
+            "when the conversation ends. Reply concisely."
+        ))]
+
+        for msg in session.messages:
+            if msg['role'] == 'user':
+                lc_messages.append(HumanMessage(content=msg['content']))
+            elif msg['role'] == 'assistant':
+                lc_messages.append(AIMessage(content=msg['content']))
+
+        result = self.langchain_agent.invoke(lc_messages)
+        return result.content
 
     def _maybe_build_langchain_agent(self):
         """Optional: khởi tạo real LangChain agent nếu dependencies tồn tại.

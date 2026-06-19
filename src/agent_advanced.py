@@ -145,9 +145,82 @@ class AdvancedAgent:
         }
 
     def _reply_live(self, user_id: str, thread_id: str, message: str) -> dict[str, Any]:
-        """Live path: gọi real LLM với memory tools (optional)."""
-        # Placeholder: khi implement với LangChain tools
-        return self._reply_offline(user_id, thread_id, message)
+        """Live path: gọi real LLM với User.md + compact memory context.
+
+        Flow (mirror _reply_offline nhưng dùng LLM thật ở bước generate):
+        1. Extract profile updates và ghi vào User.md
+        2. Append user message vào compact memory
+        3. Build prompt: system prompt chứa User.md + summary (nếu có)
+        4. Build message list từ compact memory context
+        5. Gọi self.langchain_agent.invoke()
+        6. Append response vào compact memory
+        7. Track token usage (dùng usage_metadata nếu có)
+        """
+        from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
+        # Step 1: Extract + persist profile updates (same as offline)
+        updates = extract_profile_updates(message)
+        if updates:
+            # Ensure file exists on disk before edit_text
+            if not self.profile_store.path_for(user_id).exists():
+                self.profile_store.write_text(user_id, self.profile_store.read_text(user_id))
+            for key, value in updates.items():
+                if key == 'name':
+                    self.profile_store.edit_text(user_id, '- Name: (unknown)', f'- Name: {value}')
+                elif key == 'location':
+                    self.profile_store.edit_text(user_id, '- Location: (unknown)', f'- Location: {value}')
+                elif key == 'profession':
+                    self.profile_store.edit_text(user_id, '- Profession: (unknown)', f'- Profession: {value}')
+
+        # Step 2: Append user message to compact memory
+        self.compact_memory.append(thread_id, 'user', message)
+
+        # Step 3: Build system prompt with User.md
+        profile_text = self.profile_store.read_text(user_id)
+        context_state = self.compact_memory.context(thread_id)
+
+        system_content = (
+            "You are a helpful assistant with long-term memory about the user.\n\n"
+            f"User Profile (remember this across sessions):\n{profile_text}\n\n"
+            "Use the profile to answer questions about the user (name, location, job, etc.)."
+        )
+        lc_messages = [SystemMessage(content=system_content)]
+
+        # Inject compacted summary if available
+        if context_state.get('summary'):
+            lc_messages.append(SystemMessage(content=context_state['summary']))
+
+        # Step 4: Build message list from compact memory (includes current user message)
+        for msg in context_state.get('messages', []):
+            if msg['role'] == 'user':
+                lc_messages.append(HumanMessage(content=msg['content']))
+            elif msg['role'] == 'assistant':
+                lc_messages.append(AIMessage(content=msg['content']))
+
+        # Step 5: Call real LLM
+        llm_response = self.langchain_agent.invoke(lc_messages)
+        response = llm_response.content
+
+        # Step 6: Append response to compact memory
+        self.compact_memory.append(thread_id, 'assistant', response)
+
+        # Step 7: Track tokens (prefer real counts from API response)
+        usage = getattr(llm_response, 'usage_metadata', None)
+        if usage:
+            response_tokens = usage.get('output_tokens', estimate_tokens(response))
+            prompt_tokens = usage.get('input_tokens', self._estimate_prompt_context_tokens(user_id, thread_id))
+        else:
+            response_tokens = estimate_tokens(response)
+            prompt_tokens = self._estimate_prompt_context_tokens(user_id, thread_id)
+
+        self.thread_tokens[thread_id] = self.thread_tokens.get(thread_id, 0) + response_tokens
+        self.thread_prompt_tokens[thread_id] = self.thread_prompt_tokens.get(thread_id, 0) + prompt_tokens
+
+        return {
+            'response': response,
+            'token_usage': response_tokens,
+            'prompt_tokens_processed': prompt_tokens,
+        }
 
     def _estimate_prompt_context_tokens(self, user_id: str, thread_id: str) -> int:
         """Ước tính prompt tokens cho turn này.

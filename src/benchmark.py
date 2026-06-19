@@ -269,8 +269,8 @@ def main() -> None:
     print("### Standard Benchmark (data/conversations.json)")
     print()
 
-    baseline = BaselineAgent(config, force_offline=True)
-    advanced = AdvancedAgent(config, force_offline=True)
+    baseline = BaselineAgent(config, force_offline=False)
+    advanced = AdvancedAgent(config, force_offline=False)
 
     baseline_result = run_agent_benchmark('Baseline', baseline, standard_conversations, config)
     advanced_result = run_agent_benchmark('Advanced', advanced, standard_conversations, config)
@@ -282,8 +282,8 @@ def main() -> None:
     print("### Long-Context Stress Benchmark (data/advanced_long_context.json)")
     print()
 
-    baseline2 = BaselineAgent(config, force_offline=True)
-    advanced2 = AdvancedAgent(config, force_offline=True)
+    baseline2 = BaselineAgent(config, force_offline=False)
+    advanced2 = AdvancedAgent(config, force_offline=False)
 
     baseline_result2 = run_agent_benchmark('Baseline', baseline2, long_context_conversations, config)
     advanced_result2 = run_agent_benchmark('Advanced', advanced2, long_context_conversations, config)
